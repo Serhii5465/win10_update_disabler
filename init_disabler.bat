@@ -1,9 +1,10 @@
-NET SESSION >nul 2>&1
-IF %ERRORLEVEL% EQU 0 (
-    echo Success: Administrative permissions confirmed.
-    "%~dp0PsExec.exe" -i -s powershell -executionpolicy unrestricted -noexit -File "%~dp0Win10_Update_Disabler.ps1"
-) ELSE (
-    echo Failure: Current permissions inadequate.
+@echo off
+
+net session >nul 2>&1
+if %errorLevel% == 0 (
+    "%~dp0PsExec.exe" -i \\%COMPUTERNAME% -s powershell -executionpolicy unrestricted -file "%~dp0Win10_Update_Disabler.ps1"
+) else (
+    echo Access denied
 )
 
 pause
