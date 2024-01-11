@@ -1,10 +1,18 @@
-# To run the script, use the command: powershell -executionpolicy unrestricted .\Win10_Update_Enabler.ps1
+$ErrorActionPreference = 'Stop'
 
-#Requires -RunAsAdministrator
+function EditUpdateViaRegistry {
+    $Root_Path = 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\'
+    Remove-Item -Path $Root_Path
+}
 
-Set-Location $PSScriptRoot
+function ConfigureServiceUpdate {
+    # Get-Service -DisplayName 'Windows Update' | Set-Service -StartupType 'Automatic' | Start-Service -Force
+    # Get-Service -DisplayName 'Update Orchestrator Service' | Set-Service -StartupType 'Automatic'
 
-$global:ErrorActionPreference = 1
+    [string]$User_Name = 'LocalSystem'
+    (Get-WmiObject -Class win32_Service | Where-Object DisplayName -eq 'Windows Update').change($null,$null,$null,$null,$null,$null,$User_Name,$null,$null,$null,$null)
+    (Get-WmiObject -Class win32_Service | Where-Object DisplayName -eq 'Update Orchestrator Service').change($null,$null,$null,$null,$null,$null,$User_Name,$null,$null,$null,$null)
+}
 
 function EnableScheduleTaskUpdate {
     Enable-ScheduledTask -TaskPath '\Microsoft\Windows\WindowsUpdate\' -TaskName 'Scheduled Start'
@@ -18,7 +26,9 @@ function EnableScheduleTaskUpdate {
 }
 
 function main {
-    EnableScheduleTaskUpdate
+    #EditUpdateViaRegistry
+    #EnableScheduleTaskUpdate
+    ConfigureServiceUpdate
 }
 
 main
