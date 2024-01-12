@@ -1,6 +1,6 @@
 $ErrorActionPreference = 'Stop'
 
-function ConfigureServiceUpdate {
+function ConfigureServicesUpdate {
     [string]$User_Name = '.\Guest'
 
     Get-Service -DisplayName 'Windows Update' | Set-Service -StartupType 'Disabled'  | Stop-Service -Force
@@ -27,7 +27,6 @@ function EditUpdateViaRegistryGroupPolicy {
         New-Item -Path $Root_Path -Force
     } 
 
-    
     Set-ItemProperty -Path $Root_Path 'NoAutoUpdate' 1 
     Set-ItemProperty -Path $Root_Path 'AUOptions' 1
 }
@@ -48,10 +47,10 @@ function RemoveUpdateDir {
 }
 
 function main {
-    ConfigureServiceUpdate
-    #EditUpdateViaRegistryGroupPolicy
-    #DisableScheduleTaskUpdate
-    #RemoveUpdateDir
+    ConfigureServicesUpdate
+    EditUpdateViaRegistryGroupPolicy
+    DisableScheduleTaskUpdate
+    RemoveUpdateDir
 }
 
 main
