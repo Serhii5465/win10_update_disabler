@@ -1,52 +1,116 @@
 $ErrorActionPreference = 'Stop'
 
+Import-Module -Name "$PSScriptRoot\utils\log.psm1"-Force -Verbose
+
 function ConfigureServicesUpdate {
     [string]$User_Name = '.\Guest'
 
-    Get-Service -DisplayName 'Windows Update' | Set-Service -StartupType 'Disabled'  | Stop-Service -Force
-    Get-Service -DisplayName 'Update Orchestrator Service' | Set-Service -StartupType 'Disabled' | Stop-Service -Force
+    [string]$Path_Srv_Registry = 'HKLM:\SYSTEM\CurrentControlSet\Services'
 
-    # Set credentials for Windows Update service and Update Orchestrator Service
-    (Get-WmiObject -Class win32_Service | Where-Object DisplayName -eq 'Windows Update').change($null,$null,$null,$null,$null,$null,$User_Name,$null,$null,$null,$null)
-    (Get-WmiObject -Class win32_Service | Where-Object DisplayName -eq 'Update Orchestrator Service').change($null,$null,$null,$null,$null,$null,$User_Name,$null,$null,$null,$null)
+    $List_Services = @(
+        'wuauserv'      # Windows Update
+        'UsoSvc'        # Update Orchestrator Service
+        'WaaSMedicSvc'  # Windows Update Medic Service
+    )
+    
+    [string]$Log_Message = ''
+    [string]$Cur_Edit_Subtree = ''
 
-    Get-Service -DisplayName 'Delivery Optimization' | Stop-Service -Force
-    Get-Service -DisplayName 'Windows Update Medic Service' | Stop-Service -Force
+    foreach ($Item in $List_Services) {
+        if(Get-Service -Name $Item | Where-Object {$_.Status -eq "Running"}){
+            Get-Service -Name $Item | Stop-Service -Force
+            $Log_Message += "Is active; "
+        }
+        
+        $Cur_Edit_Subtree = $Path_Srv_Registry + '\' + $Item
+    
+        if(Get-ItemProperty -Path $Cur_Edit_Subtree | Where-Object {[int]$_.Start -ne 4}){
+            Set-ItemProperty -Path $Cur_Edit_Subtree -Name Start -Value 4
+            $Log_Message += "StartMode is not 'Disabled'; "
+        }
 
-    # Change start mode and credentials for Windows Update Medic Service and Delivery Optimization
-    Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Services\WaaSMedicSvc\" -Name Start -Value 4 
-    Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Services\DoSvc\" -Name Start -Value 4
+        if(Get-ItemProperty -Path $Cur_Edit_Subtree | Where-Object {$_.ObjectName -ne $User_Name}){
+            Set-ItemProperty -Path $Cur_Edit_Subtree -Name ObjectName -Value $User_Name
+            $Log_Message += "Logon credentials has been changed."
+        } 
 
-    Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Services\WaaSMedicSvc\" -Name ObjectName -Value $User_Name
+        if (-not ([string]::IsNullOrEmpty($Log_Message))){
+            WriteInfoToEventLog "Status of", $Item, ":", $Log_Message, "Setting the presets of service to default"
+            $Log_Message = ''
+        }
+    }
 }
 
 function EditUpdateViaRegistryGroupPolicy {
-    $Root_Path = 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU\'
+    [string]$Root_Path = 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU\'
+    [string]$Log_Message = ''
+
+    $List_Propeties = @(
+        'AUOptions'
+        'NoAutoUpdate'
+    )
 
     if (!(Test-Path -Path $Root_Path)){
         New-Item -Path $Root_Path -Force
+    
+        Set-ItemProperty -Path $Root_Path $List_Propeties[0] 1 
+        Set-ItemProperty -Path $Root_Path $List_Propeties[1] 1
+
+        $Log_Message = ("Creating new subtree in registry for presets of Group Policy of Windows Updates." + 
+                    "Setting new parameters - NoAutoUpdate: 1, AUOptions: 1.")
+
+        WriteInfoToEventLog $Log_Message
     } 
 
-    Set-ItemProperty -Path $Root_Path 'NoAutoUpdate' 1 
-    Set-ItemProperty -Path $Root_Path 'AUOptions' 1
+    [string]$Result = ''
+    $Log_Message = (" parameter from Group Policy has been changed. Setting default value.")
+
+    foreach ($Item in $List_Propeties) {
+        $Result = Get-ItemProperty -Path $Root_Path -Name $Item | Select-Object -ExpandProperty $Item
+
+        if([int]$Result -ne 1){
+            Set-ItemProperty -Path $Root_Path $Item 1 
+            WriteInfoToEventLog $Item$Log_Message
+        }
+    }
 }
 
 function DisableScheduleTaskUpdate {
-    Disable-ScheduledTask -TaskPath '\Microsoft\Windows\WindowsUpdate\' -TaskName 'Scheduled Start'
-    Disable-ScheduledTask -TaskPath '\Microsoft\Windows\UpdateOrchestrator\' -TaskName 'Schedule Scan'
-    Disable-ScheduledTask -TaskPath '\Microsoft\Windows\UpdateOrchestrator\' -TaskName 'Schedule Scan Static Task'
-    Disable-ScheduledTask -TaskPath '\Microsoft\Windows\UpdateOrchestrator\' -TaskName 'Schedule Work'
-    Disable-ScheduledTask -TaskPath '\Microsoft\Windows\UpdateOrchestrator\' -TaskName 'Report policies'
-    Disable-ScheduledTask -TaskPath '\Microsoft\Windows\UpdateOrchestrator\' -TaskName 'UpdateModelTask'
-    Disable-ScheduledTask -TaskPath '\Microsoft\Windows\UpdateOrchestrator\' -TaskName 'USO_UxBroker'
-    Disable-ScheduledTask -TaskPath '\Microsoft\Windows\WaaSMedic\' -TaskName 'PerformRemediation'
+    $Task_List = @(
+        'Scheduled Start'
+        'Schedule Scan'
+        'Schedule Scan Static Task'
+        'Schedule Work'
+        'Report policies'
+        'UpdateModelTask'
+        'USO_UxBroker'
+        'PerformRemediation'
+    )
+
+    [string]$Result, [string]$Log_Message = ''
+    
+    foreach ($Item in $Task_List) {
+        $Result = Get-ScheduledTask -TaskName $Item | Where-Object -Property State -eq "Ready" | Select-Object -Property TaskPath 
+        if($Result){
+            $Log_Message += (-join("The task ", $Item, "(Path = ", $Result.TaskPath, ") has a status 'Ready'.", "Changing status to 'Disabled'.`n"))
+            Disable-ScheduledTask -TaskPath $Result.TaskPath -TaskName $Item
+        }
+    }
+    
+    WriteInfoToEventLog $Log_Message
 }
 
 function RemoveUpdateDir {
-    Get-ChildItem -Path $env:windir'\SoftwareDistribution' | Remove-Item -Recurse -Force    
+    [string]$Dir_Updates = 'C:\Windows\SoftwareDistribution'
+  
+    if((Get-ChildItem -Path $Dir_Updates -Force | Select-Object -First 1 | Measure-Object).Count -ne 0){
+        WriteInfoToEventLog "Directory of Win updates is not empty.Removing..."
+        Get-ChildItem -Path $Dir_Updates | Remove-Item -Recurse -Force  
+    }
 }
 
 function main {
+    CreateEventLog
     ConfigureServicesUpdate
     EditUpdateViaRegistryGroupPolicy
     DisableScheduleTaskUpdate
