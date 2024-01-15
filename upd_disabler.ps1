@@ -1,6 +1,6 @@
 $ErrorActionPreference = 'Stop'
 
-Import-Module -Name "$PSScriptRoot\utils\log.psm1"-Force -Verbose
+Import-Module -Name "$PSScriptRoot\utils\log.psm1"-Force
 
 function ConfigureServicesUpdate {
     [string]$User_Name = '.\Guest'
@@ -41,7 +41,7 @@ function ConfigureServicesUpdate {
     }
 }
 
-function EditUpdateViaRegistryGroupPolicy {
+function EditGroupPolicyUpdateViaRegistry {
     [string]$Root_Path = 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU\'
     [string]$Log_Message = ''
 
@@ -90,10 +90,10 @@ function DisableScheduleTaskUpdate {
     [string]$Result, [string]$Log_Message = ''
     
     foreach ($Item in $Task_List) {
-        $Result = Get-ScheduledTask -TaskName $Item | Where-Object -Property State -eq "Ready" | Select-Object -Property TaskPath 
+        $Result = Get-ScheduledTask -TaskName $Item | Where-Object -Property State -eq "Ready" | Select-Object -ExpandProperty TaskPath 
         if($Result){
-            $Log_Message += (-join("The task ", $Item, "(Path = ", $Result.TaskPath, ") has a status 'Ready'.", "Changing status to 'Disabled'.`n"))
-            Disable-ScheduledTask -TaskPath $Result.TaskPath -TaskName $Item
+            $Log_Message += (-join("The task ", $Item, " (Path = ", $Result, ") has a status 'Ready'.", "Changing status to 'Disabled'.`n"))
+            Disable-ScheduledTask -TaskPath $Result -TaskName $Item
         }
     }
     
@@ -112,7 +112,7 @@ function RemoveUpdateDir {
 function main {
     CreateEventLog
     ConfigureServicesUpdate
-    EditUpdateViaRegistryGroupPolicy
+    EditGroupPolicyUpdateViaRegistry
     DisableScheduleTaskUpdate
     RemoveUpdateDir
 }
