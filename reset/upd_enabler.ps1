@@ -1,40 +1,38 @@
 $ErrorActionPreference = 'Stop'
 
-function EditUpdateViaRegistryGroupPolicy {
+function EditGroupPolicyUpdateViaRegistry {
     $Root_Path = 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\'
-    Remove-Item -Path $Root_Path -Force -Recurse
+    if(Test-Path -Path $Root_Path){
+        Remove-Item -Path $Root_Path -Force -Recurse
+    }
 }
 
 function EnableScheduleTaskUpdate {
-    Enable-ScheduledTask -TaskPath '\Microsoft\Windows\WindowsUpdate\' -TaskName 'Scheduled Start'
-    Enable-ScheduledTask -TaskPath '\Microsoft\Windows\UpdateOrchestrator\' -TaskName 'Schedule Scan'
-    Enable-ScheduledTask -TaskPath '\Microsoft\Windows\UpdateOrchestrator\' -TaskName 'Schedule Scan Static Task'
-    Enable-ScheduledTask -TaskPath '\Microsoft\Windows\UpdateOrchestrator\' -TaskName 'Schedule Work'
-    Enable-ScheduledTask -TaskPath '\Microsoft\Windows\UpdateOrchestrator\' -TaskName 'Report policies'
-    Enable-ScheduledTask -TaskPath '\Microsoft\Windows\UpdateOrchestrator\' -TaskName 'UpdateModelTask'
-    Enable-ScheduledTask -TaskPath '\Microsoft\Windows\UpdateOrchestrator\' -TaskName 'USO_UxBroker'
-    Enable-ScheduledTask -TaskPath '\Microsoft\Windows\WaaSMedic\' -TaskName 'PerformRemediation'
+    Enable-ScheduledTask -TaskPath '\Microsoft\Windows\WindowsUpdate\' -TaskName 'Scheduled Start' | Out-Null
+    Enable-ScheduledTask -TaskPath '\Microsoft\Windows\UpdateOrchestrator\' -TaskName 'Schedule Scan' | Out-Null
+    Enable-ScheduledTask -TaskPath '\Microsoft\Windows\UpdateOrchestrator\' -TaskName 'Schedule Scan Static Task' | Out-Null
+    Enable-ScheduledTask -TaskPath '\Microsoft\Windows\UpdateOrchestrator\' -TaskName 'Schedule Work' | Out-Null
+    Enable-ScheduledTask -TaskPath '\Microsoft\Windows\UpdateOrchestrator\' -TaskName 'Report policies' | Out-Null
+    Enable-ScheduledTask -TaskPath '\Microsoft\Windows\UpdateOrchestrator\' -TaskName 'UpdateModelTask' | Out-Null
+    Enable-ScheduledTask -TaskPath '\Microsoft\Windows\UpdateOrchestrator\' -TaskName 'USO_UxBroker' | Out-Null
+    Enable-ScheduledTask -TaskPath '\Microsoft\Windows\WaaSMedic\' -TaskName 'PerformRemediation' | Out-Null
 }
 
 function ConfigureServicesUpdate {
     [string]$User_Name = 'LocalSystem'
 
-    Get-Service -DisplayName 'Windows Update' | Set-Service -StartupType 'Automatic'
-    Get-Service -DisplayName 'Update Orchestrator Service' | Set-Service -StartupType 'Automatic'
+    Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Services\UsoSvc\" -Name Start -Value 2
+    Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Services\UsoSvc\" -Name ObjectName -Value $User_Name  
 
-    # Set credentials for Windows Update service and Update Orchestrator Service
-    (Get-WmiObject -Class win32_Service | Where-Object DisplayName -eq 'Windows Update').change($null,$null,$null,$null,$null,$null,$User_Name,$null,$null,$null,$null)
-    (Get-WmiObject -Class win32_Service | Where-Object DisplayName -eq 'Update Orchestrator Service').change($null,$null,$null,$null,$null,$null,$User_Name,$null,$null,$null,$null)
+    Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Services\wuauserv\" -Name Start -Value 2
+    Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Services\wuauserv\" -Name ObjectName -Value $User_Name  
 
-    # Set start mode and credentials for Windows Update Medic Service and Delivery Optimization
-    Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Services\WaaSMedicSvc\" -Name Start -Value 3 # Manual
-    Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Services\DoSvc\" -Name Start -Value 2 # Automatic
-
+    Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Services\WaaSMedicSvc\" -Name Start -Value 3
     Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Services\WaaSMedicSvc\" -Name ObjectName -Value $User_Name  
 }
 
 function main {
-    EditUpdateViaRegistryGroupPolicy
+    EditGroupPolicyUpdateViaRegistry
     EnableScheduleTaskUpdate
     ConfigureServicesUpdate
 }
