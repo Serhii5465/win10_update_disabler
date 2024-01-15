@@ -97,7 +97,9 @@ function DisableScheduleTaskUpdate {
         }
     }
     
-    WriteInfoToEventLog $Log_Message
+    if (-not ([string]::IsNullOrEmpty($Log_Message))){
+        WriteInfoToEventLog $Log_Message
+    }
 }
 
 function RemoveUpdateDir {
