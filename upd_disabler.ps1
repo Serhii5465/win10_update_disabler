@@ -3,6 +3,15 @@ $ErrorActionPreference = 'Stop'
 Import-Module -Name "$PSScriptRoot\utils\log.psm1"-Force
 
 function ConfigureServicesUpdate {
+    <#
+    .SYNOPSIS
+    Configures Windows services related to Windows Update by adjusting their state, start mode, and logon credentials.
+    
+    .DESCRIPTION
+    Manages the configuration of services Windows Update, Update Orchestrator and Windows Update Medic.
+    Uses both WMI objects and values of registry tree to inspect and modify the state, start mode, and logon credential.
+    #>
+
     [string]$User_Name = '.\Guest'
     [string]$Path_Srv_Registry = 'HKLM:\SYSTEM\CurrentControlSet\Services'
 
@@ -44,6 +53,19 @@ function ConfigureServicesUpdate {
 }
 
 function EditGroupPolicyUpdateViaRegistry {
+    <#
+    .SYNOPSIS
+    Edits Group Policy settings for Windows Update by modifying registry values.
+    
+    .DESCRIPTION
+    Long description
+    Modifies on specific properties under the 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU\' 
+    registry path, creating the registry path if it does not exist. The function sets specific parameters to
+    ensure the desired Group Policy configurations. Parameter AUOptions is responsible for download notification and automatic installation of updates.
+    Parameter NoAutoUpdate specifies general parameter of auto update activity.
+    Setting a value of 1 to these two parameters disables notification and update download activity.
+    #>
+
     [string]$Root_Path = 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU\'
     [string]$Log_Message = ''
 
@@ -78,6 +100,11 @@ function EditGroupPolicyUpdateViaRegistry {
 }
 
 function DisableScheduleTaskUpdate {
+    <#
+    .SYNOPSIS
+    Disables specific scheduled tasks related to Windows Update.
+    #>
+
     $Task_List = @(
         'Scheduled Start'
         'Schedule Scan'
@@ -105,6 +132,11 @@ function DisableScheduleTaskUpdate {
 }
 
 function RemoveUpdateDir {
+    <#
+    .SYNOPSIS
+    Removes the contents of the Windows SoftwareDistribution directory, commonly used for Windows updates.
+    #>
+
     [string]$Dir_Updates = 'C:\Windows\SoftwareDistribution'
   
     if((Get-ChildItem -Path $Dir_Updates -Force | Select-Object -First 1 | Measure-Object).Count -ne 0){
