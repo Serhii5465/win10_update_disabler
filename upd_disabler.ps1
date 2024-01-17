@@ -5,8 +5,6 @@ Import-Module -Name "$PSScriptRoot\utils\log.psm1"-Force
 function ConfigureServicesUpdate {
     [string]$User_Name = '.\Guest'
 
-    [string]$Path_Srv_Registry = 'HKLM:\SYSTEM\CurrentControlSet\Services'
-
     $List_Services = @(
         'wuauserv'      # Windows Update
         'UsoSvc'        # Update Orchestrator Service
@@ -14,28 +12,28 @@ function ConfigureServicesUpdate {
     )
     
     [string]$Log_Message = ''
-    [string]$Cur_Edit_Subtree = ''
+    [System.Management.ManagementObject]$Service_Obj = ''
 
     foreach ($Item in $List_Services) {
-        if(Get-Service -Name $Item | Where-Object {$_.Status -eq "Running"}){
+        $Service_Obj = Get-WmiObject win32_service | Where-Object {$_.Name -eq $Item}
+
+        if($Service_Obj.State -ne 'Stopped'){
+            $Log_Message += "State - " + $Service_Obj.State + "`r`n"
             Get-Service -Name $Item | Stop-Service -Force
-            $Log_Message += "Is active; "
         }
         
-        $Cur_Edit_Subtree = $Path_Srv_Registry + '\' + $Item
-    
-        if(Get-ItemProperty -Path $Cur_Edit_Subtree | Where-Object {[int]$_.Start -ne 4}){
-            Set-ItemProperty -Path $Cur_Edit_Subtree -Name Start -Value 4
-            $Log_Message += "StartMode is not 'Disabled'; "
+        if ($Service_Obj.StartMode -ne 'Disabled') {
+            $Log_Message += "StartMode - " + $Service_Obj.StartMode + "`r`n"
+            $Service_Obj.change($null, $null, $null, $null, 'Disabled', $null, $null, $null, $null, $null, $null) | Out-Null
         }
 
-        if(Get-ItemProperty -Path $Cur_Edit_Subtree | Where-Object {$_.ObjectName -ne $User_Name}){
-            Set-ItemProperty -Path $Cur_Edit_Subtree -Name ObjectName -Value $User_Name
-            $Log_Message += "Logon credentials has been changed."
-        } 
+        if ($Service_Obj.StartName -ne $User_Name) {
+            $Log_Message += "Credential - " + $Service_Obj.StartName + "`r`n"
+            $Service_Obj.change($null, $null, $null, $null, $null, $null, $User_Name, $null, $null, $null, $null) | Out-Null  
+        }
 
         if (-not ([string]::IsNullOrEmpty($Log_Message))){
-            WriteInfoToEventLog "Status of", $Item, ":", $Log_Message, "Setting the presets of service to default"
+            WriteInfoToEventLog (-join("Status of ", $Service_Obj.DisplayName, ":`r`n", $Log_Message, "`n`nResetting the presets of service to default"))
             $Log_Message = ''
         }
     }
@@ -112,11 +110,11 @@ function RemoveUpdateDir {
 }
 
 function main {
-    CreateEventLog
+    # CreateEventLog
     ConfigureServicesUpdate
-    EditGroupPolicyUpdateViaRegistry
-    DisableScheduleTaskUpdate
-    RemoveUpdateDir
+    # EditGroupPolicyUpdateViaRegistry
+    # DisableScheduleTaskUpdate
+    # RemoveUpdateDir
 }
 
 main
