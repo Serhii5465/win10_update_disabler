@@ -4,6 +4,7 @@ Import-Module -Name "$PSScriptRoot\utils\log.psm1"-Force
 
 function ConfigureServicesUpdate {
     [string]$User_Name = '.\Guest'
+    [string]$Path_Srv_Registry = 'HKLM:\SYSTEM\CurrentControlSet\Services'
 
     $List_Services = @(
         'wuauserv'      # Windows Update
@@ -12,6 +13,7 @@ function ConfigureServicesUpdate {
     )
     
     [string]$Log_Message = ''
+    [string]$Cur_Edit_Subtree = ''
     [System.Management.ManagementObject]$Service_Obj = ''
 
     foreach ($Item in $List_Services) {
@@ -21,15 +23,17 @@ function ConfigureServicesUpdate {
             $Log_Message += "State - " + $Service_Obj.State + "`r`n"
             Get-Service -Name $Item | Stop-Service -Force
         }
-        
+
+        $Cur_Edit_Subtree = $Path_Srv_Registry + '\' + $Item
+
         if ($Service_Obj.StartMode -ne 'Disabled') {
             $Log_Message += "StartMode - " + $Service_Obj.StartMode + "`r`n"
-            $Service_Obj.change($null, $null, $null, $null, 'Disabled', $null, $null, $null, $null, $null, $null) | Out-Null
+            Set-ItemProperty -Path $Cur_Edit_Subtree -Name Start -Value 4
         }
 
         if ($Service_Obj.StartName -ne $User_Name) {
             $Log_Message += "Credential - " + $Service_Obj.StartName + "`r`n"
-            $Service_Obj.change($null, $null, $null, $null, $null, $null, $User_Name, $null, $null, $null, $null) | Out-Null  
+            Set-ItemProperty -Path $Cur_Edit_Subtree -Name ObjectName -Value $User_Name
         }
 
         if (-not ([string]::IsNullOrEmpty($Log_Message))){
@@ -110,11 +114,11 @@ function RemoveUpdateDir {
 }
 
 function main {
-    # CreateEventLog
+    CreateEventLog
     ConfigureServicesUpdate
-    # EditGroupPolicyUpdateViaRegistry
-    # DisableScheduleTaskUpdate
-    # RemoveUpdateDir
+    EditGroupPolicyUpdateViaRegistry
+    DisableScheduleTaskUpdate
+    RemoveUpdateDir
 }
 
 main
