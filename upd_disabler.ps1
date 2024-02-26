@@ -106,13 +106,16 @@ function DisableScheduleTaskUpdate {
     #>
 
     $Task_List = @(
+        # \Microsoft\Windows\WindowsUpdate
         'Scheduled Start'
+        # \Microsoft\Windows\UpdateOrchestrator
+        'Report policies'
         'Schedule Scan'
         'Schedule Scan Static Task'
         'Schedule Work'
-        'Report policies'
         'UpdateModelTask'
         'USO_UxBroker'
+        # \Microsoft\Windows\WaaSMedic
         'PerformRemediation'
     )
 
