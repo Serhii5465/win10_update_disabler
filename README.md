@@ -3,17 +3,17 @@
 A small utility written on PowerShell to disable annoying updates in Windows 10.
 Can be run as a standalone script manually or through the Task Scheduler.
 
+# Warnings!
+Elevated privileges at the SYSTEM level are required to run. This is necessary for editing certain properties of services and scheduled tasks in Windows. Before use, make sure you have a system backup. To restore default values, use the upd_enabler.ps1 script, which located in the 'reset' folder.
+
 # Dependencies
-Before using the Upd_Disabler.ps1 script, the PsExec utility is required. This utility is used to elevate system privileges, edit certain properties of services, and schedule tasks in Windows.
+The PsExec utility is required to run in manual mode. 
 
 # What does this tool do exactly?
 1. Disables windows update services and their helpers (Windows Update: wuauserv, Update Orchestrator service - UsoSvc, Windows Update Medic service - WaaSMedicSvc).It also sets new values for the parameters Start Type='Disabled' and Log On As='Guest'.
 2. Disables all scheduled tasks for updates in the WindowsUpdate, UpdateOrchestrator, and WaaSMedic sections.
 3. Edits group policy for Windows updates via the registry (disabling activity notifications about available updates and automatic downloading to the PC).
 4. It deletes already downloaded windows update files.
-
-# Warnings!
-Before use, make sure you have a system backup. To restore default values, use the upd_enabler.ps1 script, which located in the 'reset' folder.
 
 # Logging
 All actions related to making changes to the system are recorded in the Event Log. Parameters for searching log entries:
@@ -53,7 +53,7 @@ Tab 'Actions':
 Put PsExec.exe to 'reset' folder and run init_enabler.bat with admin privileges.
 
 # Notes
-The utility is still in BETA and undergoing testing. It has been tested and confirmed to work on the Windows 10 LTSC (21H2) operating system, which is used as both the host and guest on Hyper-V.
+The utility is still in BETA and undergoing testing. It has been tested and confirmed to work on the Windows 10 LTSC (21H2) operating system, which is used as both the host and guest on VirtualBox.
 
 # License
 MIT
