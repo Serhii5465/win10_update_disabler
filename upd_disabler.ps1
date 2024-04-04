@@ -1,6 +1,20 @@
 $ErrorActionPreference = 'Stop'
 
-Import-Module -Name "$PSScriptRoot\utils\log.psm1"-Force
+function WriteInfoToEventLog {
+    param (
+        [string]$Message
+    )
+
+    $Log_Name = 'Application'
+    $Event_Id = 47990
+    $Source = 'Disabler Windows 10 Updates'
+
+    If ([System.Diagnostics.EventLog]::SourceExists($Source) -eq $False) {
+        New-EventLog -LogName $Log_Name -Source $Source
+    }
+
+    Write-EventLog -LogName $Log_Name -EventId $Event_Id -EntryType 'Information' -Source $Source -Message $Message
+}
 
 function ConfigureServicesUpdate {
     <#
@@ -75,7 +89,7 @@ function EditGroupPolicyUpdateViaRegistry {
     )
 
     if (!(Test-Path -Path $Root_Path)){
-        New-Item -Path $Root_Path -Force
+        New-Item -Path $Root_Path -Force | Out-Null
     
         Set-ItemProperty -Path $Root_Path $List_Propeties[0] 1 
         Set-ItemProperty -Path $Root_Path $List_Propeties[1] 1
@@ -99,7 +113,7 @@ function EditGroupPolicyUpdateViaRegistry {
     }
 }
 
-function DisableScheduleTaskUpdate {
+function DisableScheduledTaskUpdate {
     <#
     .SYNOPSIS
     Disables specific scheduled tasks related to Windows Update.
@@ -125,7 +139,7 @@ function DisableScheduleTaskUpdate {
         $Result = Get-ScheduledTask -TaskName $Item | Where-Object -Property State -eq "Ready" | Select-Object -ExpandProperty TaskPath 
         if($Result){
             $Log_Message += (-join("The task ", $Item, " (Path = ", $Result, ") has a status 'Ready'.", "Changing status to 'Disabled'.`n"))
-            Disable-ScheduledTask -TaskPath $Result -TaskName $Item
+            Disable-ScheduledTask -TaskPath $Result -TaskName $Item | Out-Null
         }
     }
     
@@ -149,10 +163,9 @@ function RemoveUpdateDir {
 }
 
 function main {
-    CreateEventLog
     ConfigureServicesUpdate
     EditGroupPolicyUpdateViaRegistry
-    DisableScheduleTaskUpdate
+    DisableScheduledTaskUpdate
     RemoveUpdateDir
 }
 
