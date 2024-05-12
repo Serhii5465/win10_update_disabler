@@ -32,7 +32,7 @@ function EnableScheduledTaskUpdate {
         'Report policies'
         'Schedule Scan'
         'Schedule Scan Static Task'
-        'Schedule Work'
+        #'Schedule Work'
         'UpdateModelTask'
         'USO_UxBroker'
         # \Microsoft\Windows\WaaSMedic
