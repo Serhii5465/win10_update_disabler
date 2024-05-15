@@ -1,19 +1,4 @@
-def CheckAgent(String label){
-    online_nodes = nodesByLabel label: "${label}", offline: false
-    if (online_nodes) {
-        echo "${label} online"
-    } else {
-       currentBuild.result = 'ABORTED'
-       error("${label} offline. Aborting building")
-    }
-}
-
-def CheckGitCred(String data){
-    if ("${data}".isEmpty()) {
-        currentBuild.result = 'ABORTED'
-        error("Enter GitHub credentials...")
-    }
-}
+@Library('PrepEnvForBuild') _
 
 pipeline{
     agent {
