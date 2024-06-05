@@ -11,23 +11,20 @@ pipeline{
 
     parameters {
         choice choices: ['Win10_MSI', 'Win10-VB', 'Win10-Dell'], description: 'Choose an agent for deployment', name: 'AGENT'
-        credentials credentialType: 'com.cloudbees.jenkins.plugins.sshcredentials.impl.BasicSSHUserPrivateKey', defaultValue: '', name: 'GIT_REPO_CRED', required: true
     }
 
     stages {
-        stage('Check status agent/git cred'){
+        stage('Check status agent'){
             steps{
                 CheckAgent("${params.AGENT}")
-                CheckGitCred("$params.GIT_REPO_CRED")
             }
         }
 
         stage('Git checkout'){
             steps {
-                git branch: 'main', 
-                credentialsId: "${params.GIT_REPO_CRED}", 
-                poll: false, 
-                url: 'git@github.com:Serhii5465/win10_update_disabler_script-ps.git'
+                checkout scmGit(branches: [[name: 'main']],
+                extensions: [], 
+                userRemoteConfigs: [[url: 'win10_update_disabler_script_ps_repo:Serhii5465/win10_update_disabler_script-ps.git']])
 
                 stash includes: 'upd_disabler.ps1', name: 'script'
             }
