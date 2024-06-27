@@ -6,7 +6,8 @@ node('master') {
         git_branch : "main",
         stash_includes : "upd_disabler.ps1",
         stash_excludes : "",
-        command : "robocopy . D:\\system\\Disabler_Win10_Updates upd_disabler.ps1"
+        command_deploy : "robocopy . D:\\system\\Disabler_Win10_Updates upd_disabler.ps1",
+        func_deploy : ""
     ]
 
     DeployArtifactsPipelineWinAgents(config)
