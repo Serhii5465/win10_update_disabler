@@ -24,6 +24,14 @@ function EditGroupPolicyUpdateViaRegistry {
     }
 }
 
+function ShutDownScheduledTaskDisablerUpdate {
+    [string]$Name_Task = 'Disable updates'
+    [string]$Task_Path = Get-ScheduledTask -TaskName $Name_Task | Where-Object -Property State -eq "Ready" | Select-Object -ExpandProperty TaskPath
+    
+    Disable-ScheduledTask -TaskPath $Task_Path -TaskName $Name_Task | Out-Null
+    WriteInfoToEventLog "Disabling the scheduled task for turning off Windows updates"
+}
+
 function EnableScheduledTaskUpdate {
     $Task_List = @(
         # \Microsoft\Windows\WindowsUpdate
@@ -73,6 +81,7 @@ function ConfigureServicesUpdate {
 }
 
 function main {
+    ShutDownScheduledTaskDisablerUpdate
     EditGroupPolicyUpdateViaRegistry
     EnableScheduledTaskUpdate
     ConfigureServicesUpdate
