@@ -80,7 +80,7 @@ function EditGroupPolicyUpdateViaRegistry {
     Setting a value of 1 to these two parameters disables notification and update download activity.
     #>
 
-    [string]$Root_Path = 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU\'
+    [string]$Reg_Path = 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU\'
     [string]$Log_Message = ''
 
     $List_Propeties = @(
@@ -88,11 +88,11 @@ function EditGroupPolicyUpdateViaRegistry {
         'NoAutoUpdate'
     )
 
-    if (!(Test-Path -Path $Root_Path)){
-        New-Item -Path $Root_Path -Force | Out-Null
+    if (!(Test-Path -Path $Reg_Path)){
+        New-Item -Path $Reg_Path -Force | Out-Null
     
-        Set-ItemProperty -Path $Root_Path $List_Propeties[0] 1 
-        Set-ItemProperty -Path $Root_Path $List_Propeties[1] 1
+        Set-ItemProperty -Path $Reg_Path $List_Propeties[0] 1 
+        Set-ItemProperty -Path $Reg_Path $List_Propeties[1] 1
 
         $Log_Message = ("Creating new subtree in registry for presets of Group Policy of Windows Updates." + 
                     "Setting new parameters - NoAutoUpdate: 1, AUOptions: 1.")
@@ -100,17 +100,24 @@ function EditGroupPolicyUpdateViaRegistry {
         WriteInfoToEventLog $Log_Message
     } 
 
-    [string]$Result = ''
-    $Log_Message = (" parameter from Group Policy has been changed. Setting default value.")
+    if ((Test-Path -Path $Reg_Path)){
+        [string]$Result = ''
+        $Log_Message = (" parameter from Group Policy has been changed. Setting default value.")
+    
+        foreach ($Item in $List_Propeties) {
+            if((Get-Item $Reg_Path -ErrorAction Ignore).Property -contains $Item){
+                $Result = Get-ItemProperty -Path $Reg_Path -Name $Item | Select-Object -ExpandProperty $Item
 
-    foreach ($Item in $List_Propeties) {
-        $Result = Get-ItemProperty -Path $Root_Path -Name $Item | Select-Object -ExpandProperty $Item
-
-        if([int]$Result -ne 1){
-            Set-ItemProperty -Path $Root_Path $Item 1 
-            WriteInfoToEventLog $Item$Log_Message
+                if([int]$Result -ne 1){
+                    Set-ItemProperty -Path $Reg_Path $Item 1 
+                    WriteInfoToEventLog $Item$Log_Message
+                }
+            } else {
+                Set-ItemProperty -Path $Reg_Path $Item 1
+                WriteInfoToEventLog $Item$Log_Message
+            }
         }
-    }
+    } 
 }
 
 function DisableScheduledTaskUpdate {
